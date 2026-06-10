@@ -25,13 +25,17 @@ public class FichaClinicaService {
     public FichaClinica crearFicha(FichaClinica ficha) {
         log.info("Iniciando creación de ficha clínica para la Mascota ID: {}", ficha.getIdMascota());
 
-        // LÓGICA DE COMUNICACIÓN ACTIVA CON MS MASCOTAS
-        boolean mascotaExiste = mascotaClient.validarMascota(ficha.getIdMascota());
-        
-        if(!mascotaExiste) {
+        // 1. INTEGRACIÓN PREPARADA: Descomentar cuando MS Mascotas de Gabriel esté listo
+        /*
+        MascotaDTO datosMascota = mascotaClient.obtenerDatosMascota(ficha.getIdMascota());
+        if(datosMascota == null) {
             log.error("Fallo al crear ficha: La mascota con ID {} no existe.", ficha.getIdMascota());
             throw new ResourceNotFoundException("Mascota no encontrada en el sistema central.");
         }
+        log.info("Datos obtenidos desde MS Mascotas: {} (Especie: {})", datosMascota.getNombre(), datosMascota.getEspecie());
+        */
+
+        log.info("Simulando validación y obtención de datos biológicos vía Feign Client (Mascota ID: {})", ficha.getIdMascota());
 
         // Vinculamos los diagnósticos con la ficha para respetar la integridad referencial
         if (ficha.getDiagnosticos() != null) {
