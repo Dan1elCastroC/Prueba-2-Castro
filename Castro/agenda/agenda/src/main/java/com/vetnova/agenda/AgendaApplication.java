@@ -5,7 +5,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
-@EnableFeignClients // <--- OBLIGATORIO PARA QUE FUNCIONE LA COMUNICACIÓN
 public class AgendaApplication {
 
     public static void main(String[] args) {

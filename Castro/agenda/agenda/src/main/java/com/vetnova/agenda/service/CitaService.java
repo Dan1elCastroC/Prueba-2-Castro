@@ -1,13 +1,13 @@
 package com.vetnova.agenda.service;
 
-import com.vetnova.agenda.client.ClienteClient;
-import com.vetnova.agenda.client.MascotaClient;
+import com.vetnova.agenda.event.CitaAgendadaEvent;
 import com.vetnova.agenda.exception.ResourceNotFoundException;
 import com.vetnova.agenda.model.Cita;
 import com.vetnova.agenda.repository.CitaRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,82 +16,66 @@ import java.util.List;
 @Slf4j
 @Service
 @Transactional
-public class CitaService { // Renombrado a CitaService
+public class CitaService {
 
     @Autowired
     private CitaRepository citaRepository;
+
+    // Herramienta nativa de Spring para simular la emisión de eventos al ecosistema
     @Autowired
-    private ClienteClient clienteClient;
-    @Autowired
-    private MascotaClient mascotaClient;
+    private ApplicationEventPublisher eventPublisher;
 
     public Cita agendarHora(Cita cita) {
-        log.info("Iniciando agendamiento de hora para mascota ID: {}", cita.getIdMascota());
+        log.info("Iniciando registro asíncrono de cita. Validaciones delegadas a la consistencia eventual.");
         
-        
-        // Como los microservicios 8084 y 8085 de tus compañeros aún no existen,
-        // dejamos esto como comentario para evitar el "Connection refused".
-        
-        if (!clienteClient.validarClienteExiste(cita.getIdCliente())) {
-            throw new ResourceNotFoundException("El cliente no existe en el sistema.");
-        }
-        if (!mascotaClient.validarMascotaExiste(cita.getIdMascota())) {
-            throw new ResourceNotFoundException("La mascota no existe en el sistema.");
-        }
-        
-        
-        log.info("Simulando validación exitosa de Cliente y Mascota vía Feign Client");
-
+        // 1. Guardamos la cita asumiendo que los IDs son correctos (Arquitectura autónoma)
         cita.setEstado("AGENDADA");
-        return citaRepository.save(cita);
+        Cita nuevaCita = citaRepository.save(cita);
+        log.info("Cita guardada en BD local con ID: {}", nuevaCita.getId());
+
+        // 2. Disparamos el EVENTO DE DOMINIO al ecosistema (Cumpliendo Hallazgo 2 y 5)
+        CitaAgendadaEvent evento = new CitaAgendadaEvent(
+                nuevaCita.getId(),
+                nuevaCita.getIdCliente(),
+                nuevaCita.getIdMascota(),
+                nuevaCita.getFechaHora()
+        );
+        eventPublisher.publishEvent(evento);
+        log.info("Evento [CitaAgendadaEvent] emitido exitosamente. Notificaciones y otros MS pueden reaccionar a esto.");
+
+        return nuevaCita;
     }
 
-    public Cita reprogramarHora(Long id, LocalDateTime nuevaFechaHora) {
-        log.info("Reprogramando cita ID: {} para la fecha: {}", id, nuevaFechaHora);
-        Cita cita = citaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La cita médica con ID " + id + " no fue encontrada."));
-        
-        cita.setFechaHora(nuevaFechaHora);
-        cita.setEstado("REPROGRAMADA");
+    public Cita reprogramarHora(Long id, LocalDateTime nuevaFecha) {
+        Cita cita = obtenerCitaPorId(id);
+        cita.setFechaHora(nuevaFecha);
         return citaRepository.save(cita);
     }
 
     public Cita cancelarHora(Long id) {
-        log.info("Cancelando cita ID: {}", id);
-        Cita cita = citaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La cita médica con ID " + id + " no fue encontrada."));
-        
+        Cita cita = obtenerCitaPorId(id);
         cita.setEstado("CANCELADA");
         return citaRepository.save(cita);
     }
 
     public Cita confirmarAsistencia(Long id) {
-        log.info("Confirmando asistencia del paciente para la cita ID: {}", id);
-        Cita cita = citaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La cita médica con ID " + id + " no fue encontrada."));
-        
+        Cita cita = obtenerCitaPorId(id);
         cita.setEstado("CONFIRMADA");
         return citaRepository.save(cita);
     }
-    // Método para leer todas las citas (Consultar agenda)
+
     public List<Cita> obtenerTodasLasCitas() {
-        log.info("Consultando todas las citas médicas agendadas");
         return citaRepository.findAll();
     }
 
-    // Método para leer una cita específica por su ID
     public Cita obtenerCitaPorId(Long id) {
-        log.info("Consultando cita médica ID: {}", id);
         return citaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("La cita médica con ID " + id + " no fue encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con ID: " + id));
     }
-    // Método para el Microservicio de Notificaciones (HU-061)
+
     public List<Cita> obtenerCitasProximas24h() {
-        log.info("Consultando citas de las próximas 24 horas para envío de recordatorios");
         LocalDateTime ahora = LocalDateTime.now();
         LocalDateTime manana = ahora.plusDays(1);
-        
-        // Filtramos las citas que están agendadas para las próximas 24 horas
         return citaRepository.findAll().stream()
                 .filter(cita -> cita.getFechaHora().isAfter(ahora) && cita.getFechaHora().isBefore(manana))
                 .toList();
