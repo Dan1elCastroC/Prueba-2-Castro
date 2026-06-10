@@ -26,12 +26,13 @@ public class VentaService {
     public Venta registrarVenta(Venta venta) {
         log.info("Registrando nueva venta para el cliente ID: {}", venta.getIdCliente());
 
-        // INTEGRACIÓN PREPARADA: Descomentar cuando el MS de Inventario (8087) esté listo
-        
+        // 1. INTEGRACIÓN PREPARADA: Descomentar cuando MS Inventario esté listo
+        /*
         if (!inventarioClient.validarStock(venta.getIdProducto(), venta.getCantidad())) {
+            log.error("Stock insuficiente para el producto ID: {}", venta.getIdProducto());
             throw new RuntimeException("No hay stock suficiente en el inventario.");
         }
-        
+        */
         log.info("Simulando validación de stock exitosa vía Feign Client");
 
         venta.setEstado("PENDIENTE");
@@ -42,6 +43,14 @@ public class VentaService {
     public Venta procesarPago(Long id) {
         log.info("Procesando pago para la venta ID: {}", id);
         Venta venta = obtenerVentaPorId(id);
+
+        // 2. INTEGRACIÓN PREPARADA: Al pagar, se ordena descontar el stock físico (RF15)
+        /*
+        log.info("Ordenando a Inventario descontar {} unidades del producto {}", venta.getCantidad(), venta.getIdProducto());
+        inventarioClient.descontarStock(venta.getIdProducto(), venta.getCantidad());
+        */
+        log.info("Simulando descuento de stock físico en el MS Inventario vía Feign Client");
+
         venta.setEstado("PAGADA");
         return ventaRepository.save(venta);
     }
