@@ -3,7 +3,6 @@ package com.vetnova.auth.controller;
 import com.vetnova.auth.dto.LoginRequest;
 import com.vetnova.auth.service.AuthService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,8 +13,13 @@ import java.util.Map;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    @Autowired
-    private AuthService authService;
+    // 1. Variable inmutable (final)
+    private final AuthService authService;
+
+    // 2. Inyección mediante el Constructor
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {

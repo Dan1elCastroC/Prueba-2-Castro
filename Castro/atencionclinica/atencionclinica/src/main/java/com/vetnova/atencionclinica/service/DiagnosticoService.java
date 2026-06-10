@@ -3,13 +3,12 @@ package com.vetnova.atencionclinica.service;
 import com.vetnova.atencionclinica.exception.ResourceNotFoundException;
 import com.vetnova.atencionclinica.model.Diagnostico;
 import com.vetnova.atencionclinica.repository.DiagnosticoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DiagnosticoService {
 
-    @Autowired
+
     private DiagnosticoRepository repository;
 
     public Diagnostico buscarPorId(Long id) {

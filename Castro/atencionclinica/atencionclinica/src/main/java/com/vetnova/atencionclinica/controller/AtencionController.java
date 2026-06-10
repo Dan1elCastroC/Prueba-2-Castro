@@ -3,7 +3,6 @@ package com.vetnova.atencionclinica.controller;
 import com.vetnova.atencionclinica.model.Diagnostico;
 import com.vetnova.atencionclinica.service.DiagnosticoService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +13,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/atenciones")
 public class AtencionController {
 
-    @Autowired
     private DiagnosticoService service;
 
     // Buscar una atención

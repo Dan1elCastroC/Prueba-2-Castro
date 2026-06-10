@@ -6,7 +6,6 @@ import com.vetnova.agenda.model.Cita;
 import com.vetnova.agenda.repository.CitaRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -18,12 +17,15 @@ import java.util.List;
 @Transactional
 public class CitaService {
 
-    @Autowired
-    private CitaRepository citaRepository;
+    // 1. Las variables ahora son 'final' (inmutables)
+    private final CitaRepository citaRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    // Herramienta nativa de Spring para simular la emisión de eventos al ecosistema
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
+    // 2. Inyección de dependencias mediante el Constructor (Adiós @Autowired)
+    public CitaService(CitaRepository citaRepository, ApplicationEventPublisher eventPublisher) {
+        this.citaRepository = citaRepository;
+        this.eventPublisher = eventPublisher;
+    }
 
     public Cita agendarHora(Cita cita) {
         log.info("Iniciando registro asíncrono de cita. Validaciones delegadas a la consistencia eventual.");

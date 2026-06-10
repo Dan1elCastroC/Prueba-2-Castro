@@ -4,7 +4,6 @@ import com.vetnova.ventas.dto.VentaRequestDTO;
 import com.vetnova.ventas.model.Venta;
 import com.vetnova.ventas.service.VentaService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,8 +14,13 @@ import java.util.List;
 @RequestMapping("/api/v1/ventas")
 public class VentaController {
 
-    @Autowired
-    private VentaService ventaService;
+    // 1. Variable inmutable (final)
+    private final VentaService ventaService;
+
+    // 2. Inyección mediante el Constructor
+    public VentaController(VentaService ventaService) {
+        this.ventaService = ventaService;
+    }
 
     // 1. Registrar Venta
     @PostMapping("/registrar")
