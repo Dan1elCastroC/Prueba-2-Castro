@@ -16,14 +16,12 @@ import java.util.List;
 @Slf4j
 @Service
 @Transactional
-public class AgendaService {
+public class CitaService { // Renombrado a CitaService
 
     @Autowired
     private CitaRepository citaRepository;
-
     @Autowired
     private ClienteClient clienteClient;
-
     @Autowired
     private MascotaClient mascotaClient;
 
@@ -86,5 +84,16 @@ public class AgendaService {
         log.info("Consultando cita médica ID: {}", id);
         return citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("La cita médica con ID " + id + " no fue encontrada."));
+    }
+    // Método para el Microservicio de Notificaciones (HU-061)
+    public List<Cita> obtenerCitasProximas24h() {
+        log.info("Consultando citas de las próximas 24 horas para envío de recordatorios");
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime manana = ahora.plusDays(1);
+        
+        // Filtramos las citas que están agendadas para las próximas 24 horas
+        return citaRepository.findAll().stream()
+                .filter(cita -> cita.getFechaHora().isAfter(ahora) && cita.getFechaHora().isBefore(manana))
+                .toList();
     }
 }

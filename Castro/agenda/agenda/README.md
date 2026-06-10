@@ -1,85 +1,105 @@
 # Microservicio de Agenda - Clínica Veterinaria VetNova
 
 ## 1. Descripción del Proyecto
-El presente proyecto corresponde al Microservicio de Agenda, un componente esencial del ecosistema de arquitectura distribuida de la Clínica Veterinaria VetNova. Su objetivo principal es la administración y gestión eficiente de las horas médicas, permitiendo coordinar la atención de los pacientes, el registro de citas y el seguimiento de sus estados (Agendada, Confirmada, Reprogramada, Cancelada).
+Este microservicio es el encargado de gestionar la reserva, reprogramación, cancelación y confirmación de citas médicas en el ecosistema distribuido de la Clínica Veterinaria VetNova. Está desarrollado bajo la arquitectura CSR (Controller - Service - Repository) y se comunica de manera síncrona con otros dominios del sistema para asegurar la integridad de los datos agendados.
 
-Este desarrollo ha sido diseñado bajo los principios de "Domain-Driven Design" (DDD), asegurando que el dominio de la agenda opere de manera independiente, con su propia base de datos, y se comunique con otros microservicios (Clientes y Mascotas) únicamente a través de clientes HTTP (OpenFeign), manteniendo un bajo nivel de acoplamiento.
+## 2. Integrantes del Equipo
+* Daniel Castro
+* Pamela Acuña
+* Gabriel Martínez
 
-## 2. Arquitectura y Patrones de Diseño
-El microservicio ha sido estructurado bajo el Patrón CSR (Controller - Service - Repository), garantizando la escalabilidad y el mantenimiento del código:
-* **Controller:** Capa expuesta mediante `@RestController`. Orquesta las peticiones HTTP y maneja estrictamente las respuestas mediante el objeto `ResponseEntity` para asegurar el uso correcto de los códigos de estado HTTP (200, 201, 400, 404).
-* **Service:** Contiene la lógica de negocio. Es responsable de asignar estados por defecto, coordinar la búsqueda en base de datos y preparar la integración remota con otros microservicios mediante llamadas REST sincrónicas.
-* **Repository:** Capa de persistencia que extiende de `JpaRepository` para el manejo automatizado de las consultas hacia la base de datos relacional.
-* **Patrón DTO (Data Transfer Object):** Implementación de la clase `CitaRequestDTO` para desacoplar el modelo de base de datos de los datos de entrada, mejorando la seguridad y limpieza del código.
-* **Manejo de Errores Global:** Implementación del patrón `@RestControllerAdvice` y manejo de excepciones personalizadas (`ResourceNotFoundException`) para interceptar errores y devolver estructuras JSON estandarizadas en lugar de trazas de servidor.
+## 3. Arquitectura y Tecnologías
+* **Lenguaje:** Java 21
+* **Framework:** Spring Boot 3.4.x
+* **Persistencia:** MySQL y Spring Data JPA (Hibernate)
+* **Testing:** JUnit, Mockito y H2 Database (Memoria)
+* **Comunicación:** Spring Cloud OpenFeign
+* **Documentación API:** Swagger / SpringDoc OpenAPI
+* **Herramientas:** Lombok, Jakarta Validation
 
-## 3. Stack Tecnológico Utilizado
-* **Lenguaje:** Java 17.
-* **Framework Principal:** Spring Boot 3.4.x.
-* **Comunicación entre microservicios:** Spring Cloud OpenFeign 2024.0.0.
-* **Persistencia:** Spring Data JPA e Hibernate.
-* **Base de Datos:** MySQL (Puerto 3306).
-* **Validaciones:** Jakarta Bean Validation (JSR 380).
-* **Trazabilidad:** SLF4J para logs estructurados.
-* **Librerías de Soporte:** Lombok.
+## 4. Requisitos Previos y Configuración de Base de Datos
+Para ejecutar este microservicio en un entorno local, necesitas:
+1. Java JDK 21 instalado en tu sistema.
+2. XAMPP o Laragon con el módulo de MySQL iniciado (Puerto 3306).
+3. IDE de desarrollo (IntelliJ IDEA, Eclipse o VS Code).
 
-## 4. Requisitos Funcionales Implementados
-El microservicio cubre íntegramente las operaciones CRUD y las reglas de negocio exigidas:
-1. **Agendar hora:** Creación de una nueva cita médica asignando automáticamente el estado "AGENDADA".
-2. **Consultar agenda:** Lectura de todas las citas registradas en el sistema.
-3. **Consultar cita específica:** Búsqueda detallada de un registro mediante su identificador único.
-4. **Reprogramar hora:** Modificación de la fecha y hora de una cita existente, cambiando su estado a "REPROGRAMADA".
-5. **Confirmar asistencia:** Actualización del estado de una cita a "CONFIRMADA" cuando el paciente llega a la clínica.
-6. **Cancelar hora:** Anulación de una reserva, actualizando su estado a "CANCELADA".
+**Creación de la Base de Datos:**
+Antes de ejecutar el proyecto, debes crear la base de datos estandarizada en MySQL. Abre tu gestor (phpMyAdmin, HeidiSQL, etc.) y ejecuta:
+```sql
+CREATE DATABASE db_agenda;
+```
+*Nota: El microservicio está configurado con `ddl-auto=update`, por lo que las tablas se crearán automáticamente al iniciar la aplicación por primera vez.*
 
-## 5. Endpoints de la API y Funcionamiento
+## 5. Ejecución y Despliegue Local
+El microservicio se levantará de forma independiente para no colisionar con el resto del ecosistema:
+* **Puerto:** `8086`
+* **Ruta Base API:** `http://localhost:8086/api/v1/citas`
+* **Documentación Visual (Swagger):** `http://localhost:8086/doc/swagger-ui/index.html`
 
-### A. Operaciones de Escritura y Modificación
-* **POST /api/v1/agenda/agendar**
-  * **Uso:** Crea una nueva cita médica.
-  * **Body (JSON):** Requiere `idCliente`, `idMascota`, `idVeterinario`, `fechaHora` y `motivo`.
-  * **Retorno:** `201 Created` / `400 Bad Request` (Si falla la validación del DTO).
+## 6. Integración y Comunicación (OpenFeign)
+Para mantener la integridad referencial sin compartir bases de datos, este microservicio actúa como **Consumidor** y **Proveedor**:
+* **Consume a MS Clientes:** Valida que el dueño exista antes de agendar (Evita clientes fantasma).
+* **Consume a MS Mascotas:** Valida que el paciente exista antes de agendar.
+* **Provee a MS Notificaciones:** Expone las citas de las próximas 24 horas para el envío de recordatorios automáticos (Endpoint `/manana`).
 
-* **PUT /api/v1/agenda/{id}/reprogramar**
-  * **Uso:** Modifica la fecha de una cita existente.
-  * **Body (JSON):** Requiere `nuevaFechaHora`.
-  * **Retorno:** `200 OK` / `404 Not Found`.
+---
 
-* **PUT /api/v1/agenda/{id}/confirmar**
-  * **Uso:** Confirma la asistencia del paciente.
-  * **Body:** No requiere.
-  * **Retorno:** `200 OK`.
+## 7. Guía de Pruebas (Links y JSON para Postman)
 
-* **PUT /api/v1/agenda/{id}/cancelar**
-  * **Uso:** Cancela la cita médica.
-  * **Body:** No requiere.
-  * **Retorno:** `200 OK`.
+A continuación, se detallan las rutas exactas y los cuerpos (Body) necesarios para validar cada endpoint funcional (RF09, RF10).
 
-### B. Operaciones de Lectura
-* **GET /api/v1/agenda**
-  * **Uso:** Lista todas las citas médicas agendadas en el sistema.
-  * **Retorno:** `200 OK` (Array de objetos JSON).
+*(Asegúrate de incluir tu Token JWT en la pestaña **Authorization -> Bearer Token** en Postman si la seguridad ya está habilitada).*
 
-* **GET /api/v1/agenda/{id}**
-  * **Uso:** Retorna los detalles de una cita en particular.
-  * **Retorno:** `200 OK` / `404 Not Found`.
+### A. Agendar una Nueva Cita
+* **Método:** `POST`
+* **URL:** `http://localhost:8086/api/v1/citas/agendar`
+* **Descripción:** Crea una nueva cita médica y le asigna automáticamente el estado "AGENDADA".
+* **Body (raw - JSON):**
+```json
+{
+    "idCliente": 1,
+    "idMascota": 3,
+    "idVeterinario": 5,
+    "fechaHora": "2026-06-15T15:30:00",
+    "motivo": "Control post-operatorio del paciente"
+}
+```
 
-## 6. Instrucciones de Configuración y Ejecución
-Para ejecutar este microservicio en un entorno local, siga los siguientes pasos:
+### B. Confirmar Asistencia del Paciente
+* **Método:** `PUT`
+* **URL:** `http://localhost:8086/api/v1/citas/1/confirmar` *(Reemplaza '1' por un ID existente)*
+* **Descripción:** Cambia el estado interno de la cita a "CONFIRMADA".
+* **Body:** *none* (No requiere cuerpo).
 
-1. **Preparación de la Base de Datos:**
-   * Inicie su servidor MySQL (ej. a través de Laragon o XAMPP) en el puerto `3306`.
-   * Cree un esquema de base de datos completamente vacío nombrado exactamente como: `db_agenda`.
-2. **Configuración del Entorno:**
-   * Verifique que en el archivo `src/main/resources/application.properties` se encuentre configurado el puerto exclusivo de este microservicio:
-     ```properties
-     server.port=8086
-     spring.datasource.url=jdbc:mysql://localhost:3306/db_agenda?useSSL=false&serverTimezone=UTC
-     spring.datasource.username=root
-     spring.jpa.hibernate.ddl-auto=update
-     ```
-3. **Compilación y Ejecución:**
-   * Posiciónese en el directorio raíz del proyecto mediante una terminal y ejecute el comando `mvn clean install` para descargar las dependencias necesarias (incluyendo Spring Cloud OpenFeign).
-   * Ejecute la clase principal `AgendaApplication.java` utilizando su entorno de desarrollo (IDE).
-4. **Validación:**
-   * Utilice la herramienta Postman para enviar peticiones a la ruta base `http://localhost:8086/api/v1/agenda` y compruebe los flujos de creación, lectura y actualización.
+### C. Reprogramar la Cita
+* **Método:** `PUT`
+* **URL:** `http://localhost:8086/api/v1/citas/1/reprogramar`
+* **Descripción:** Modifica la fecha y hora de la cita.
+* **Body (raw - JSON):**
+```json
+{
+    "nuevaFechaHora": "2026-06-20T10:00:00"
+}
+```
+
+### D. Cancelar la Cita
+* **Método:** `PUT`
+* **URL:** `http://localhost:8086/api/v1/citas/1/cancelar`
+* **Descripción:** Cambia el estado de la cita médica a "CANCELADA".
+* **Body:** *none* (No requiere cuerpo).
+
+### E. Consultar Todas las Citas
+* **Método:** `GET`
+* **URL:** `http://localhost:8086/api/v1/citas`
+* **Descripción:** Devuelve una lista (JSON array) con todas las citas registradas en el sistema.
+
+### F. Buscar una Cita Específica
+* **Método:** `GET`
+* **URL:** `http://localhost:8086/api/v1/citas/1`
+* **Descripción:** Devuelve el detalle completo de una sola cita filtrada por su ID.
+
+### G. Consultar Citas de Mañana (Uso Interno)
+* **Método:** `GET`
+* **URL:** `http://localhost:8086/api/v1/citas/manana`
+* **Descripción:** Endpoint interno consumido por el Microservicio de Notificaciones para el envío automático de recordatorios (HU-061).
+```
