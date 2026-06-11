@@ -1,6 +1,6 @@
 package com.vetnova.agenda.service;
 
-import com.vetnova.agenda.event.CitaAgendadaEvent;
+import com.vetnova.agenda.event.EventoDominio;
 import com.vetnova.agenda.exception.ResourceNotFoundException;
 import com.vetnova.agenda.model.Cita;
 import com.vetnova.agenda.repository.CitaRepository;
@@ -10,7 +10,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -30,20 +32,30 @@ public class CitaService {
     public Cita agendarHora(Cita cita) {
         log.info("Iniciando registro asíncrono de cita. Validaciones delegadas a la consistencia eventual.");
         
-        // 1. Guardamos la cita asumiendo que los IDs son correctos (Arquitectura autónoma)
         cita.setEstado("AGENDADA");
         Cita nuevaCita = citaRepository.save(cita);
         log.info("Cita guardada en BD local con ID: {}", nuevaCita.getId());
 
-        // 2. Disparamos el EVENTO DE DOMINIO al ecosistema (Cumpliendo Hallazgo 2 y 5)
-        CitaAgendadaEvent evento = new CitaAgendadaEvent(
-                nuevaCita.getId(),
-                nuevaCita.getIdCliente(),
-                nuevaCita.getIdMascota(),
-                nuevaCita.getFechaHora()
+        // 1. Armamos el Payload exactamente como pide el Mandato (Punto 9)
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("idCita", nuevaCita.getId());
+        payload.put("idCliente", nuevaCita.getIdCliente());
+        payload.put("idMascota", nuevaCita.getIdMascota());
+        payload.put("idSucursal", 3); // Valor de ejemplo o sacado de la cita
+        payload.put("fecha", nuevaCita.getFechaHora().toLocalDate().toString());
+        payload.put("hora", nuevaCita.getFechaHora().toLocalTime().toString());
+        payload.put("estado", "AGENDADA");
+
+        // 2. Envolvemos el payload en el EventoDominio estándar
+        EventoDominio<Map<String, Object>> evento = new EventoDominio<>(
+                "CitaAgendada",
+                "ms-agenda",
+                payload
         );
+        
+        // 3. Publicamos el evento
         eventPublisher.publishEvent(evento);
-        log.info("Evento [CitaAgendadaEvent] emitido exitosamente. Notificaciones y otros MS pueden reaccionar a esto.");
+        log.info("Evento estandarizado [CitaAgendada] emitido con EventID: {}", evento.getEventId());
 
         return nuevaCita;
     }

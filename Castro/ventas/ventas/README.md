@@ -1,49 +1,26 @@
-# Microservicio de Ventas y Pagos - Clínica Veterinaria VetNova
+# Microservicio de Ventas y Pagos
+Administra el procesamiento financiero de la clínica, gestionando el registro de ventas, confirmación de pagos, emisión de boletas y control de devoluciones.
 
-## 1. Descripción del Proyecto
-Este microservicio gestiona las transacciones comerciales de VetNova. Se encarga de procesar las ventas de insumos y medicamentos, administrar los pagos, emitir boletas y gestionar las devoluciones. Se integra estrechamente con el Microservicio de Inventario para garantizar la consistencia del stock físico de la clínica.
+- **Puerto de ejecución:** `8088`
+- **Base de Datos:** `db_ventas` (MySQL)
 
-## 2. Arquitectura y Tecnologías
-* **Lenguaje:** Java 21
-* **Framework:** Spring Boot 3.4.x
-* **Persistencia:** MySQL y Spring Data JPA
-* **Comunicación:** Spring Cloud OpenFeign
-* **Documentación:** Swagger / SpringDoc OpenAPI
+## Endpoints Principales
+- `POST /api/v1/ventas/registrar` : Ingresa una nueva intención de compra.
+- `PUT /api/v1/ventas/{id}/pagar` : Procesa el pago y confirma la venta.
+- `PUT /api/v1/ventas/{id}/devolucion` : Registra anulación/devolución.
+- `GET /api/v1/ventas/{id}/boleta` : Emite el documento tributario.
 
-## 3. Requisitos Previos y Ejecución
-1. Iniciar XAMPP/Laragon con MySQL en el puerto 3306.
-2. Levantar la aplicación. La base de datos `db_ventas` se creará sola.
-* **Puerto local:** `8088`
-* **Swagger:** `http://localhost:8088/doc/swagger-ui/index.html`
+## Matriz de Eventos (Arquitectura Asíncrona)
+Las validaciones de stock físico se delegan al Inventario de forma eventual.
+- **Eventos que PUBLICA:** `VentaConfirmada`, `PagoConfirmado`, `DevolucionRegistrada`
+- **Eventos que CONSUME:** `StockActualizado`, `ClienteInactivado`
 
-## 4. Integración Rest (Feign)
-* **Consume a MS Inventario:**
-  1. Valida disponibilidad de stock antes de generar la venta (`/validar-stock`).
-  2. Ordena descontar el stock físico al procesar el pago (`/descontar-stock`).
+## Cómo ejecutar el proyecto
+1. Levanta tu servidor MySQL y verifica que exista el esquema `db_ventas`.
+2. Compila el proyecto ejecutando: `mvn clean install`.
+3. Inicia la aplicación desde tu entorno de desarrollo ejecutando `VentasApplication.java`.
 
----
-
-## 5. Guía de Pruebas (Postman)
-
-### A. Registrar una Venta (Estado PENDIENTE)
-* **Método:** `POST`
-* **URL:** `http://localhost:8088/api/v1/ventas/registrar`
-* **Body (JSON):**
-```json
-{
-    "idCliente": 2,
-    "idProducto": 15,
-    "cantidad": 2,
-    "montoTotal": 24990.0
-}
-B. Procesar el Pago de la Venta (Pasa a PAGADA)
-Método: PUT
-URL: http://localhost:8088/api/v1/ventas/1/pagar
-Body: none
-C. Emitir Boleta
-Método: GET
-URL: http://localhost:8088/api/v1/ventas/1/boleta (Nota: Si intentas emitir boleta de una venta PENDIENTE, el sistema arrojará un error 500 controlado).
-D. Registrar Devolución (Pasa a DEVUELTA)
-Método: PUT
-URL: http://localhost:8088/api/v1/ventas/1/devolucion
-Body: none
+## Cómo probar en Postman
+1. Prepara un `POST` a `http://localhost:8088/api/v1/ventas/registrar`.
+2. En el **Body** (raw -> JSON) envía el RequestDTO: `{"idCliente": 5, "idProducto": 12, "cantidad": 2, "montoTotal": 25000.0}`.
+3. Recibirás un HTTP 201 Created. Luego puedes usar el ID retornado para hacer un `PUT` a `/api/v1/ventas/{id}/pagar` y ver cómo el sistema dispara el evento `VentaConfirmada`.

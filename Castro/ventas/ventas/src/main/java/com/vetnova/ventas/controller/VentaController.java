@@ -1,6 +1,7 @@
 package com.vetnova.ventas.controller;
 
 import com.vetnova.ventas.dto.VentaRequestDTO;
+import com.vetnova.ventas.dto.VentaResponseDTO;
 import com.vetnova.ventas.model.Venta;
 import com.vetnova.ventas.service.VentaService;
 import jakarta.validation.Valid;
@@ -9,22 +10,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/ventas")
 public class VentaController {
 
-    // 1. Variable inmutable (final)
     private final VentaService ventaService;
 
-    // 2. Inyección mediante el Constructor
     public VentaController(VentaService ventaService) {
         this.ventaService = ventaService;
     }
 
-    // 1. Registrar Venta
     @PostMapping("/registrar")
-    public ResponseEntity<Venta> registrarVenta(@Valid @RequestBody VentaRequestDTO dto) {
+    public ResponseEntity<VentaResponseDTO> registrarVenta(@Valid @RequestBody VentaRequestDTO dto) {
         Venta venta = new Venta();
         venta.setIdCliente(dto.getIdCliente());
         venta.setIdProducto(dto.getIdProducto());
@@ -32,39 +31,50 @@ public class VentaController {
         venta.setMontoTotal(dto.getMontoTotal());
 
         Venta nuevaVenta = ventaService.registrarVenta(venta);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nuevaVenta);
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapearADTO(nuevaVenta));
     }
 
-    // 2. Procesar Pago
     @PutMapping("/{id}/pagar")
-    public ResponseEntity<Venta> procesarPago(@PathVariable Long id) {
+    public ResponseEntity<VentaResponseDTO> procesarPago(@PathVariable Long id) {
         Venta ventaPagada = ventaService.procesarPago(id);
-        return ResponseEntity.ok(ventaPagada);
+        return ResponseEntity.ok(mapearADTO(ventaPagada));
     }
 
-    // 3. Registrar Devolución
     @PutMapping("/{id}/devolucion")
-    public ResponseEntity<Venta> registrarDevolucion(@PathVariable Long id) {
+    public ResponseEntity<VentaResponseDTO> registrarDevolucion(@PathVariable Long id) {
         Venta ventaDevuelta = ventaService.registrarDevolucion(id);
-        return ResponseEntity.ok(ventaDevuelta);
+        return ResponseEntity.ok(mapearADTO(ventaDevuelta));
     }
 
-    // 4. Emitir Boleta
     @GetMapping("/{id}/boleta")
-    public ResponseEntity<Venta> emitirBoleta(@PathVariable Long id) {
+    public ResponseEntity<VentaResponseDTO> emitirBoleta(@PathVariable Long id) {
         Venta boleta = ventaService.emitirBoleta(id);
-        return ResponseEntity.ok(boleta);
+        return ResponseEntity.ok(mapearADTO(boleta));
     }
 
-    // 5. Historial de compras / ventas
     @GetMapping
-    public ResponseEntity<List<Venta>> listarVentas() {
-        return ResponseEntity.ok(ventaService.obtenerTodasLasVentas());
+    public ResponseEntity<List<VentaResponseDTO>> listarVentas() {
+        List<VentaResponseDTO> ventas = ventaService.obtenerTodasLasVentas().stream()
+                .map(this::mapearADTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ventas);
     }
 
-    // 6. Consultar venta específica
     @GetMapping("/{id}")
-    public ResponseEntity<Venta> obtenerVenta(@PathVariable Long id) {
-        return ResponseEntity.ok(ventaService.obtenerVentaPorId(id));
+    public ResponseEntity<VentaResponseDTO> obtenerVenta(@PathVariable Long id) {
+        return ResponseEntity.ok(mapearADTO(ventaService.obtenerVentaPorId(id)));
+    }
+
+    // Método interno para mapear Entidad a DTO (Cumple Punto 10)
+    private VentaResponseDTO mapearADTO(Venta venta) {
+        VentaResponseDTO dto = new VentaResponseDTO();
+        dto.setId(venta.getId());
+        dto.setIdCliente(venta.getIdCliente());
+        dto.setIdProducto(venta.getIdProducto());
+        dto.setCantidad(venta.getCantidad());
+        dto.setMontoTotal(venta.getMontoTotal());
+        dto.setEstado(venta.getEstado());
+        dto.setFechaVenta(venta.getFechaVenta());
+        return dto;
     }
 }
