@@ -1,6 +1,9 @@
 package com.vetnova.atencionclinica.controller;
 
+import com.vetnova.atencionclinica.dto.DiagnosticoRequestDTO;
+import com.vetnova.atencionclinica.dto.DiagnosticoResponseDTO;
 import com.vetnova.atencionclinica.model.Diagnostico;
+import com.vetnova.atencionclinica.model.FichaClinica;
 import com.vetnova.atencionclinica.service.DiagnosticoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -13,40 +16,84 @@ import java.util.Map;
 @RequestMapping("/api/v1/atenciones")
 public class AtencionController {
 
-    private DiagnosticoService service;
+    private final DiagnosticoService service;
 
-    // Buscar una atención
+    public AtencionController(DiagnosticoService service) {
+        this.service = service;
+    }
+
     @GetMapping("/id/{id}")
-    public ResponseEntity<Diagnostico> buscarAtencionPorId(@PathVariable Long id) {
+    public ResponseEntity<DiagnosticoResponseDTO> buscarAtencionPorId(@PathVariable Long id) {
         Diagnostico atencion = service.buscarPorId(id);
-        return ResponseEntity.ok(atencion);
+        return ResponseEntity.ok(mapToResponse(atencion));
     }
 
-    // 1. Registrar Diagnóstico (Crear atención directa)
     @PostMapping
-    public ResponseEntity<Diagnostico> registrarDiagnostico(@Valid @RequestBody Diagnostico diagnostico) {
+    public ResponseEntity<DiagnosticoResponseDTO> registrarDiagnostico(
+            @Valid @RequestBody DiagnosticoRequestDTO request) {
+
+        FichaClinica fichaClinica = new FichaClinica();
+        fichaClinica.setIdFicha(request.getIdFicha());
+
+        Diagnostico diagnostico = new Diagnostico();
+        diagnostico.setDescripcion(request.getDescripcion());
+        diagnostico.setTratamiento(request.getTratamiento());
+        diagnostico.setRecetaMedica(request.getRecetaMedica());
+        diagnostico.setDetalleCertificado(request.getDetalleCertificado());
+        diagnostico.setIdVeterinario(request.getIdVeterinario());
+        diagnostico.setFichaClinica(fichaClinica);
+
         Diagnostico nuevaAtencion = service.registrarDiagnostico(diagnostico);
-        return new ResponseEntity<>(nuevaAtencion, HttpStatus.CREATED);
+
+        return new ResponseEntity<>(mapToResponse(nuevaAtencion), HttpStatus.CREATED);
     }
 
-    // 2. Registrar Tratamiento en una atención existente
     @PutMapping("/{id}/tratamiento")
-    public ResponseEntity<Diagnostico> registrarTratamiento(@PathVariable Long id, @RequestBody Map<String, String> request) {
+    public ResponseEntity<DiagnosticoResponseDTO> registrarTratamiento(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
         Diagnostico atencion = service.registrarTratamiento(id, request.get("tratamiento"));
-        return ResponseEntity.ok(atencion);
+        return ResponseEntity.ok(mapToResponse(atencion));
     }
 
-    // 3. Emitir Receta Médica
     @PutMapping("/{id}/receta")
-    public ResponseEntity<Diagnostico> emitirReceta(@PathVariable Long id, @RequestBody Map<String, String> request) {
+    public ResponseEntity<DiagnosticoResponseDTO> emitirReceta(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
         Diagnostico atencion = service.emitirReceta(id, request.get("recetaMedica"));
-        return ResponseEntity.ok(atencion);
+        return ResponseEntity.ok(mapToResponse(atencion));
     }
 
-    // 4. Emitir Certificado Médico
     @PutMapping("/{id}/certificado")
-    public ResponseEntity<Diagnostico> emitirCertificado(@PathVariable Long id, @RequestBody Map<String, String> request) {
+    public ResponseEntity<DiagnosticoResponseDTO> emitirCertificado(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
         Diagnostico atencion = service.emitirCertificado(id, request.get("detalleCertificado"));
-        return ResponseEntity.ok(atencion);
+        return ResponseEntity.ok(mapToResponse(atencion));
+    }
+
+    private DiagnosticoResponseDTO mapToResponse(Diagnostico diagnostico) {
+        Long idFicha = null;
+        Long idMascota = null;
+
+        if (diagnostico.getFichaClinica() != null) {
+            idFicha = diagnostico.getFichaClinica().getIdFicha();
+            idMascota = diagnostico.getFichaClinica().getIdMascota();
+        }
+
+        return DiagnosticoResponseDTO.builder()
+                .idDiagnostico(diagnostico.getIdDiagnostico())
+                .descripcion(diagnostico.getDescripcion())
+                .tratamiento(diagnostico.getTratamiento())
+                .recetaMedica(diagnostico.getRecetaMedica())
+                .detalleCertificado(diagnostico.getDetalleCertificado())
+                .fecha(diagnostico.getFecha())
+                .idVeterinario(diagnostico.getIdVeterinario())
+                .idFicha(idFicha)
+                .idMascota(idMascota)
+                .build();
     }
 }

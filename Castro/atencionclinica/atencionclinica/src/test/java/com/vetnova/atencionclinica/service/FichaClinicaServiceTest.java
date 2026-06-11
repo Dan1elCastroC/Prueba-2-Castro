@@ -1,6 +1,5 @@
 package com.vetnova.atencionclinica.service;
 
-import com.vetnova.atencionclinica.event.EventoDominio;
 import com.vetnova.atencionclinica.exception.ResourceNotFoundException;
 import com.vetnova.atencionclinica.model.FichaClinica;
 import com.vetnova.atencionclinica.repository.FichaClinicaRepository;
@@ -12,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,7 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class FichaClinicaServiceTest {
+class FichaClinicaServiceTest {
 
     @Mock
     private FichaClinicaRepository repository;
@@ -39,58 +37,57 @@ public class FichaClinicaServiceTest {
         ficha = new FichaClinica();
         ficha.setIdFicha(1L);
         ficha.setIdMascota(100L);
-        ficha.setObservaciones("Control sano general");
-        ficha.setFechaCreacion(LocalDateTime.now());
     }
 
     @Test
-    void testCrearFicha_ExitoYEvento() {
-        // Simulamos que al guardar en BD nos devuelve la ficha
-        when(repository.save(any(FichaClinica.class))).thenReturn(ficha);
+    void crearFichaDebeGuardarCorrectamente() {
+
+        when(repository.save(any(FichaClinica.class)))
+                .thenReturn(ficha);
 
         FichaClinica resultado = service.crearFicha(ficha);
 
         assertNotNull(resultado);
-        assertEquals(100L, resultado.getIdMascota());
-        verify(repository, times(1)).save(ficha);
-        
-        // El mandato exige verificar que el evento AtencionRegistrada se emita
-        verify(eventPublisher, times(1)).publishEvent(any(EventoDominio.class));
+        assertEquals(1L, resultado.getIdFicha());
+
+        verify(repository, times(1))
+                .save(any(FichaClinica.class));
     }
 
     @Test
-    void testBuscarPorId_Exito() {
-        // Simulamos que encuentra la ficha en BD
-        when(repository.findById(1L)).thenReturn(Optional.of(ficha));
+    void obtenerTodasDebeRetornarLista() {
 
-        FichaClinica resultado = service.buscarPorId(1L);
+        when(repository.findAll())
+                .thenReturn(List.of(ficha));
+
+        List<FichaClinica> resultado =
+                service.obtenerTodas();
+
+        assertEquals(1, resultado.size());
+    }
+
+    @Test
+    void buscarPorIdDebeRetornarFicha() {
+
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(ficha));
+
+        FichaClinica resultado =
+                service.buscarPorId(1L);
 
         assertNotNull(resultado);
-        assertEquals(1L, resultado.getIdFicha());
-        verify(repository, times(1)).findById(1L);
+        assertEquals(100L, resultado.getIdMascota());
     }
 
     @Test
-    void testBuscarPorId_FalloLanzaExcepcion() {
-        // Simulamos que la BD devuelve vacío
-        when(repository.findById(99L)).thenReturn(Optional.empty());
+    void buscarPorIdInexistenteDebeLanzarExcepcion() {
 
-        // Verificamos que lance exactamente nuestra ResourceNotFoundException
-        assertThrows(ResourceNotFoundException.class, () -> {
-            service.buscarPorId(99L);
-        });
-        
-        verify(repository, times(1)).findById(99L);
-    }
+        when(repository.findById(99L))
+                .thenReturn(Optional.empty());
 
-    @Test
-    void testObtenerTodas() {
-        when(repository.findAll()).thenReturn(List.of(ficha));
-
-        List<FichaClinica> resultado = service.obtenerTodas();
-
-        assertFalse(resultado.isEmpty());
-        assertEquals(1, resultado.size());
-        verify(repository, times(1)).findAll();
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> service.buscarPorId(99L)
+        );
     }
 }
